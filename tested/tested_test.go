@@ -13,12 +13,14 @@ func TestNewTested(t *testing.T) {
 	tests := []struct {
 		scenario string
 		payload  payload
-		assert   func(*testing.T, Tested)
-	}{}
+		assert   func(t *testing.T, res0 Tested)
+	}{
+		// Put Your Scenario Here
+	}
 	for _, tt := range tests {
 		t.Run(tt.scenario, func(t *testing.T) {
-			a := NewTested(tt.payload.s)
-			tt.assert(t, a)
+			res0 := NewTested(tt.payload.s)
+			tt.assert(t, res0)
 		})
 	}
 
@@ -31,12 +33,14 @@ func TestJamban(t *testing.T) {
 	tests := []struct {
 		scenario string
 		payload  payload
-		assert   func(*testing.T, string)
-	}{}
+		assert   func(t *testing.T, res0 string)
+	}{
+		// Put Your Scenario Here
+	}
 	for _, tt := range tests {
 		t.Run(tt.scenario, func(t *testing.T) {
-			a := Jamban(tt.payload.s)
-			tt.assert(t, a)
+			res0 := Jamban(tt.payload.s)
+			tt.assert(t, res0)
 		})
 	}
 

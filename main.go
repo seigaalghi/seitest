@@ -15,6 +15,7 @@ import (
 )
 
 var message string
+var forceFlag bool
 var rootCmd = &cobra.Command{
 	Use:   "seitest",
 	Short: "Sei's Unit Testing Generator",
@@ -65,6 +66,12 @@ var generateCmd = &cobra.Command{
 			fmt.Println("file path is required")
 			os.Exit(1)
 		}
+
+		forced, err := cmd.Flags().GetBool("force")
+		if err != nil {
+			fmt.Println("failed : ", err.Error())
+		}
+
 		functions, err := utils.ScanFunctions(args[0])
 		if err != nil {
 			fmt.Println("Error executing command:", err)
@@ -78,7 +85,7 @@ var generateCmd = &cobra.Command{
 			case true:
 				continue
 			default:
-				FuncTestGenerator(f, &executed)
+				FuncTestGenerator(f, &executed, forced)
 			}
 		}
 
@@ -107,6 +114,8 @@ func init() {
 	rootCmd.AddCommand(generateCmd)
 	initCmd.Flags().StringVarP(&message, "message", "m", "Hello, World!", "Message to display")
 	generateCmd.Flags().StringVarP(&message, "generate", "g", "", "Generate unit test")
+	generateCmd.Flags().BoolVarP(&forceFlag, "force", "f", false, "Force overwrite")
+
 }
 
 func main() {
@@ -126,8 +135,15 @@ func InArray(list []string, file string) bool {
 	return false
 }
 
-func FuncTestGenerator(f utils.Function, executed *[]string) {
+func FuncTestGenerator(f utils.Function, executed *[]string, forced bool) {
 	path := strings.Replace(f.FilePath, ".go", "_test.go", 1)
+
+	if !forced {
+		if fileExists(path) && !InArray(*executed, path) {
+			return
+		}
+	}
+
 	var lines []string
 	var file *os.File
 	var err error
@@ -215,21 +231,29 @@ func payloadToNamedVariable(payload string) string {
 func parseResponseToAssert(response string) string {
 	responseArr := strings.Split(removeSuffixPrefixParentheses(response), ",")
 	for i, r := range responseArr {
+		dataType := r
 		if splitted := strings.Split(r, " "); len(splitted) == 2 {
-			responseArr[i] = splitted[1]
+			dataType = splitted[1]
 		}
+		responseArr[i] = fmt.Sprintf("%s %s", indexToArg(i), dataType)
 	}
 	return fmt.Sprintf(`tests := []struct {
 		scenario string
 		payload  payload
-		assert func(*testing.T, %s)
-	}{}`, strings.Join(responseArr, ", "))
+		assert func(t *testing.T, %s)
+	}{
+		// Put Your Scenario Here
+	}`, strings.Join(responseArr, ", "))
+}
+
+func indexToArg(i int) string {
+	return fmt.Sprintf("res%d", i)
 }
 
 func parseTestRunner(payload, response, functionName string) string {
 	responseArr := strings.Split(removeSuffixPrefixParentheses(response), ",")
 	for i := range responseArr {
-		responseArr[i] = intToExcelColumn(i)
+		responseArr[i] = indexToArg(i)
 	}
 
 	res := strings.Join(responseArr, ", ")
@@ -254,30 +278,6 @@ func parseTestRunner(payload, response, functionName string) string {
 			tt.assert(t, %s)
 		})
 	}`, res, functionName, pay, res)
-}
-
-func intToExcelColumn(n int) string {
-	if n < 0 {
-		return ""
-	}
-
-	var result strings.Builder
-
-	for n >= 0 {
-		result.WriteByte(byte('a' + (n % 26)))
-		if n < 25 {
-			break
-		}
-		n = (n / 26) - 1
-	}
-
-	// Reverse the string
-	runes := []rune(result.String())
-	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
-		runes[i], runes[j] = runes[j], runes[i]
-	}
-
-	return string(runes)
 }
 
 func abbreviateString(input string) string {
@@ -325,4 +325,11 @@ func addNumbersToDuplicates(arr []string) []string {
 	}
 
 	return result
+}
+
+func fileExists(filename string) bool {
+	if _, err := os.Stat(filename); err == nil {
+		return true
+	}
+	return false
 }

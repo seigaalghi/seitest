@@ -71,7 +71,7 @@ var generateCmd = &cobra.Command{
 			fmt.Println("failed : ", err.Error())
 		}
 
-		functions, err := utils.ScanFunctions(args[0])
+		functions, structs, imports, err := utils.ScanFunctions(args[0])
 		if err != nil {
 			fmt.Println("Error executing command:", err)
 			os.Exit(1)
@@ -98,6 +98,11 @@ var generateCmd = &cobra.Command{
 				executed = append(executed, path)
 				lines = append(lines, fmt.Sprintf("package %s", f.Package))
 				lines = append(lines, `import "testing"`)
+				for _, imp := range imports {
+					if imp.FilePath == f.FilePath {
+						lines = append(lines, imp.Content+"\n")
+					}
+				}
 			} else {
 				file, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err != nil {
@@ -110,9 +115,9 @@ var generateCmd = &cobra.Command{
 
 			switch f.IsMethod {
 			case true:
-				lines, _ = generator.MethodTestGenerator(f, executed, forced, path, file, lines)
+				lines, _ = generator.MethodTestGenerator(f, lines, structs)
 			default:
-				lines, _ = generator.FuncTestGenerator(f, executed, forced, path, file, lines)
+				lines, _ = generator.FuncTestGenerator(f, lines)
 			}
 
 			for _, line := range lines {

@@ -2,7 +2,6 @@ package generator
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"unicode"
@@ -10,9 +9,7 @@ import (
 	"github.com/seigaalghi/seitest/utils"
 )
 
-func FuncTestGenerator(f utils.Function, executed []string, forced bool, path string, file *os.File, lines []string) ([]string, error) {
-	_ = strings.Split(f.Content, "\n")
-	lines = append(lines, "\n")
+func FuncTestGenerator(f utils.Function, lines []string) ([]string, error) {
 	lines = append(lines, fmt.Sprintf(`func Test%s(t *testing.T){`, f.Name))
 	lines = append(lines, parsePayloadToStruct(f.Payload))
 	lines = append(lines, parseResponseToAssert(f.Result))

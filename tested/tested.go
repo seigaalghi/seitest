@@ -1,6 +1,8 @@
 package tested
 
-import "github.com/seigaalghi/seitest/interfaces"
+import (
+	"github.com/seigaalghi/seitest/interfaces"
+)
 
 type tested struct {
 	greeter interfaces.Sample
@@ -14,6 +16,7 @@ func NewTested(greeter interfaces.Sample) Tested {
 	return &tested{
 		greeter: greeter,
 	}
+
 }
 
 func (t *tested) Greetings() string {

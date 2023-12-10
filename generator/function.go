@@ -1,9 +1,7 @@
 package generator
 
 import (
-	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"strings"
@@ -12,70 +10,18 @@ import (
 	"github.com/seigaalghi/seitest/utils"
 )
 
-func FuncTestGenerator(f utils.Function, executed *[]string, forced bool) {
-	path := strings.Replace(f.FilePath, ".go", "_test.go", 1)
-
-	if !forced {
-		if utils.FileExists(path) && !utils.InArray(*executed, path) {
-			return
-		}
-	}
-
-	var lines []string
-	var file *os.File
-	var err error
-	if !utils.InArray(*executed, path) {
-		file, err = os.Create(path)
-		if err != nil {
-			fmt.Println("Failed creating file", err.Error())
-			os.Exit(1)
-		}
-		*executed = append(*executed, path)
-		lines = append(lines, fmt.Sprintf("package %s", f.Package))
-		lines = append(lines, `import "testing"`)
-	} else {
-		file, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-		if err != nil {
-			fmt.Println("Failed opening file", err.Error())
-			os.Exit(1)
-		}
-	}
-
-	writer := bufio.NewWriter(file)
-
-	write(lines, f, writer)
-
-	err = writer.Flush()
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-	file.Close()
-}
-
-func write(lines []string, f utils.Function, writer *bufio.Writer) error {
+func FuncTestGenerator(f utils.Function, executed []string, forced bool, path string, file *os.File, lines []string) ([]string, error) {
 	_ = strings.Split(f.Content, "\n")
 	lines = append(lines, "\n")
 	lines = append(lines, fmt.Sprintf(`func Test%s(t *testing.T){`, f.Name))
-	defer func() {
-		lines = append(lines, "\n}")
-		for _, line := range lines {
-			_, err := writer.WriteString(line + "\n")
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-		}
-	}()
-
 	lines = append(lines, parsePayloadToStruct(f.Payload))
 	lines = append(lines, parseResponseToAssert(f.Result))
 	lines = append(lines, parseTestRunner(f.Payload, f.Result, f.Name))
-
-	return nil
+	lines = append(lines, "\n}")
+	return lines, nil
 }
 
 func parsePayloadToStruct(payload string) string {
-
-	// Create the payload struct with the formatted output
 	payloadStruct := fmt.Sprintf("type payload struct {\n%s}", payloadToNamedVariable(payload))
 
 	return payloadStruct
@@ -87,7 +33,7 @@ func payloadToNamedVariable(payload string) string {
 	occupied := map[string]string{}
 	var outputText string
 	for _, piece := range pieces {
-		fields := strings.Fields(piece) // Split by space to get individual words
+		fields := strings.Fields(piece)
 		var fieldType string
 		if len(fields) != 2 {
 			fieldType = fields[0]
@@ -183,21 +129,16 @@ func removeSuffixPrefixParentheses(input string) string {
 }
 
 func addNumbersToDuplicates(arr []string) []string {
-	// Create a map to keep track of element occurrences
 	countMap := make(map[string]int)
 
 	result := make([]string, len(arr))
 
 	for i, element := range arr {
 		if countMap[element] == 0 {
-			// If the element is unique, keep it as it is
 			result[i] = element
 		} else {
-			// If the element is a duplicate, append the count to it
 			result[i] = fmt.Sprintf("%s%d", element, countMap[element])
 		}
-
-		// Increment the count for the element
 		countMap[element]++
 	}
 

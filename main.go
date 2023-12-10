@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/seigaalghi/seitest/generator"
 	"github.com/seigaalghi/seitest/utils"
@@ -75,14 +78,52 @@ var generateCmd = &cobra.Command{
 		}
 
 		var executed []string
-
 		for _, f := range functions {
+			path := strings.Replace(f.FilePath, ".go", "_test.go", 1)
+			if !forced {
+				if utils.FileExists(path) && !utils.InArray(executed, path) {
+					return
+				}
+			}
+
+			var lines []string
+			var file *os.File
+			var err error
+			if !utils.InArray(executed, path) {
+				file, err = os.Create(path)
+				if err != nil {
+					fmt.Println("Failed creating file", err.Error())
+					os.Exit(1)
+				}
+				executed = append(executed, path)
+				lines = append(lines, fmt.Sprintf("package %s", f.Package))
+				lines = append(lines, `import "testing"`)
+			} else {
+				file, err = os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err != nil {
+					fmt.Println("Failed opening file", err.Error())
+					os.Exit(1)
+				}
+			}
+
+			writer := bufio.NewWriter(file)
+
 			switch f.IsMethod {
 			case true:
-				continue
+				lines, _ = generator.MethodTestGenerator(f, executed, forced, path, file, lines)
 			default:
-				generator.FuncTestGenerator(f, &executed, forced)
+				lines, _ = generator.FuncTestGenerator(f, executed, forced, path, file, lines)
 			}
+
+			for _, line := range lines {
+				writer.WriteString(line + "\n")
+			}
+
+			err = writer.Flush()
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+			file.Close()
 		}
 
 		for _, exe := range executed {
